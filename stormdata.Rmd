@@ -1,0 +1,140 @@
+---
+title: "Reproducible Research: Project 2"
+author: patrick charles  
+output:
+    html_document:
+        keep_md: true
+---
+
+# Storm Data Analysis
+- Course: Reproducible Research (repdata-013)
+- Project: Course Project 2
+- Author: Patrick Charles
+
+# Synopsis
+
+In this report, we'll explore the NOAA Storm Database and answer some
+questions about severe weather events. Cumulative health and economic impacts will be evaluated
+against the types of events recorded in the dataset.
+
+In the United States, severe weather causes billions of dollars in damage and kills or injures thousands 
+of people. In this analysis we'll quantitatively compare the impact of the most damaging types of events.
+
+
+# Data Processing
+
+## Prerequisite libraries
+ggplot2 used for all plots, and tidyr/dplyr pipeline is used for processing.
+```{r message=FALSE}
+    library(ggplot2)
+    library(dplyr)
+    library(tidyr)
+    library(scales)
+```
+
+Historical storm data is obtained from [NOAA/StormData.csv.bz2](https://d396qusza40orc.cloudfront.net/repdata/data/StormData.csv.bz2)
+
+The data is uncompressed, read into a dataframe, damage values scaled/fixed and the results stored as a 
+table data frame for further processing and analysis.
+
+```{r readcsv, cache=TRUE}
+  # data can be fetched from the source via:
+  #   wget https://d396qusza40orc.cloudfront.net/repdata/data/StormData.csv.bz2
+  stormfile <- bzfile("StormData.csv.bz2","r")
+  df.sd <- read.csv(stormfile) # read the data
+  tdf.sd <- tbl_df(df.sd) # convert to a table dataframe for dplyr use
+```
+
+```{r processdata}
+# adjust property and crop damage values according to magnitude suffix
+  tdf.sd$PROPDMG <- ifelse(tdf.sd$PROPDMGEXP == "K", tdf.sd$PROPDMG * 10^3, tdf.sd$PROPDMG)
+  tdf.sd$PROPDMG <- ifelse(tdf.sd$PROPDMGEXP == "M", tdf.sd$PROPDMG * 10^6, tdf.sd$PROPDMG)
+  tdf.sd$PROPDMG <- ifelse(tdf.sd$PROPDMGEXP == "B", tdf.sd$PROPDMG * 10^9, tdf.sd$PROPDMG)
+
+# str(tdf.sd)
+  dim(tdf.sd)
+```
+The storm data set contains `r dim(tdf.sd)[1]` event observations and measurements
+of `r dim(tdf.sd)[2]` different variables.
+
+
+# Analysis
+
+## Health Impact
+
+To determine which events are most harmful with respect to health,
+we'll be looking at the 'FATALITIES' and 'INJURIES' variables
+
+```{r health_analysis}
+  tdf.health <- tdf.sd %>% group_by(EVTYPE) %>% # group by event
+      summarize(dead=sum(FATALITIES), hurt=sum(INJURIES), 
+                total=sum(INJURIES)+sum(FATALITIES))
+
+  # reformat the data and filter events which impacted > threshold people
+  health.threshold = 1000
+  tdf.health.effects <- gather(tdf.health, variable, value, -EVTYPE, -total)
+  tdf.health.worst <- tdf.health.effects %>%
+    filter(total > health.threshold) %>% arrange(-total)
+
+  head(tdf.health.worst)
+```
+
+The events most harmful to health can be visualized using a stacked
+bar chart. Event types are shown which had a cumulative effect on > `r health.threshold` individuals.
+```{r health_visual}
+
+  # order the event type factor by magnitude of total effect
+  evfactors <- reorder(tdf.health.worst$EVTYPE, tdf.health.worst$total)
+
+  ggplot(tdf.health.worst, aes(x=evfactors, y=total, fill=variable)) +
+    geom_bar(stat="identity") + coord_flip() +
+    scale_y_continuous(trans='log10',
+                       breaks=trans_breaks('log10', function(x) 10^x),
+                       labels=trans_format('log10', math_format(10^.x))) + 
+    ggtitle("Most Harmful Event Types to Population Health") +
+    ylab("Total Number Impacted") + xlab("Event Type")
+```
+
+## Economic Impact
+
+To determine which events are most harmful with respect to economic cost,
+we'll be looking at the crop and property damage variables.
+
+```{r economic_analysis}
+  tdf.econ <- tdf.sd %>% group_by(EVTYPE) %>% # group by event
+      summarize(crop=sum(CROPDMG), prop=sum(PROPDMG), 
+                total=sum(CROPDMG)+sum(PROPDMG))
+
+  # reformat data and filter events with total economic impact > econ.threshold
+  econ.threshold = 1000000000
+  tdf.econ.effects <- gather(tdf.econ, variable, value, -EVTYPE, -total)
+  tdf.econ.worst <- tdf.econ.effects %>%
+    filter(total > econ.threshold) %>% arrange(-total)
+
+  head(tdf.econ.worst)
+```
+
+The most economically harmful events can be visualized using a stacked
+bar chart. Event types are shown which had a cumulative economic impact > $`r econ.threshold`.
+```{r economic_visual}
+  # order the event type factor by magnitude of total effect
+  evfactors <- reorder(tdf.econ.worst$EVTYPE, tdf.econ.worst$total)
+
+  ggplot(tdf.econ.worst, aes(x=evfactors, y=total, fill=variable)) +
+    geom_bar(stat="identity") + coord_flip() +
+    scale_y_continuous(trans='log10',
+                       breaks=trans_breaks('log10', function(x) 10^x),
+                       labels=trans_format('log10', math_format(10^.x))) + 
+    ggtitle("Most Economically Harmful Event Types") +
+    ylab("Total $ Impact (Crops and Property)") + xlab("Event Type")
+```
+
+
+# Results
+
+- Across the United States, the following types of events are most
+harmful to population health: Tornadoes, Heat, Wind, Flooding and Lightning
+
+- Across the United States, the following types of events have
+the greatest economic consequences: Tornadoes, Floods, Flash Floods, Hail and Hurricanes
+
