@@ -86,11 +86,8 @@ bar chart. Event types are shown which had a cumulative effect on > `r health.th
   # order the event type factor by magnitude of total effect
   evfactors <- reorder(tdf.health.worst$EVTYPE, tdf.health.worst$total)
 
-  ggplot(tdf.health.worst, aes(x=evfactors, y=total, fill=variable)) +
+  ggplot(tdf.health.worst, aes(x=evfactors, y=value, fill=variable)) +
     geom_bar(stat="identity") + coord_flip() +
-    scale_y_continuous(trans='log10',
-                       breaks=trans_breaks('log10', function(x) 10^x),
-                       labels=trans_format('log10', math_format(10^.x))) + 
     ggtitle("Most Harmful Event Types to Population Health") +
     ylab("Total Number Impacted") + xlab("Event Type")
 ```
@@ -106,7 +103,7 @@ we'll be looking at the crop and property damage variables.
                 total=sum(CROPDMG)+sum(PROPDMG))
 
   # reformat data and filter events with total economic impact > econ.threshold
-  econ.threshold = 1000000000
+  econ.threshold = 3000000000
   tdf.econ.effects <- gather(tdf.econ, variable, value, -EVTYPE, -total)
   tdf.econ.worst <- tdf.econ.effects %>%
     filter(total > econ.threshold) %>% arrange(-total)
@@ -120,13 +117,11 @@ bar chart. Event types are shown which had a cumulative economic impact > $`r ec
   # order the event type factor by magnitude of total effect
   evfactors <- reorder(tdf.econ.worst$EVTYPE, tdf.econ.worst$total)
 
-  ggplot(tdf.econ.worst, aes(x=evfactors, y=total, fill=variable)) +
-    geom_bar(stat="identity") + coord_flip() +
-    scale_y_continuous(trans='log10',
-                       breaks=trans_breaks('log10', function(x) 10^x),
-                       labels=trans_format('log10', math_format(10^.x))) + 
+  ggplot(tdf.econ.worst, aes(x=evfactors, y=value, fill=variable)) +
+    geom_bar(stat="identity") + coord_flip() + 
     ggtitle("Most Economically Harmful Event Types") +
-    ylab("Total $ Impact (Crops and Property)") + xlab("Event Type")
+    ylab("Total $ Impact (Crops and Property)") + xlab("Event Type") + 
+    theme(legend.position="none") # suppress legend
 ```
 
 
@@ -136,5 +131,4 @@ bar chart. Event types are shown which had a cumulative economic impact > $`r ec
 harmful to population health: Tornadoes, Heat, Wind, Flooding and Lightning
 
 - Across the United States, the following types of events have
-the greatest economic consequences: Tornadoes, Floods, Flash Floods, Hail and Hurricanes
-
+the greatest economic consequences: Floods, Hurricanes/Typhoons, Tornadoes, Storm Surges, and Flash Floods

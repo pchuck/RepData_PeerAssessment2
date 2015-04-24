@@ -5,3 +5,5 @@ coursera, data science, reproducible research, peer assessment project #2
   - stormdata.Rmd - report with inline R code to perform the data analysis
   - rmdToHtml.R - R script to generate markdown/html from the .Rmd
 
+published to http://rpubs.com/pchuck/stormdata
+
