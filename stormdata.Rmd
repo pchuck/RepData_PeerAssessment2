@@ -17,7 +17,9 @@ In this report, we'll explore the NOAA Storm Database and answer some
 questions about severe weather events. Cumulative health and economic impacts will be evaluated
 against the types of events recorded in the dataset.
 
-In the United States, severe weather causes billions of dollars in damage and kills or injures thousands 
+The data set analyzed contains all storm events in the United States as entered by NOAA's National Weather Service (NWS) from 1950 through 2011.
+
+Severe weather causes billions of dollars in damage and kills or injures thousands 
 of people. In this analysis we'll quantitatively compare the impact of the most damaging types of events.
 
 
@@ -34,7 +36,7 @@ ggplot2 used for all plots, and tidyr/dplyr pipeline is used for processing.
 
 Historical storm data is obtained from [NOAA/StormData.csv.bz2](https://d396qusza40orc.cloudfront.net/repdata/data/StormData.csv.bz2)
 
-The data is uncompressed, read into a dataframe, damage values scaled/fixed and the results stored as a 
+The data is uncompressed, read into a dataframe, damage values scaled and the results stored as a 
 table data frame for further processing and analysis.
 
 ```{r readcsv, cache=TRUE}
@@ -46,16 +48,28 @@ table data frame for further processing and analysis.
 ```
 
 ```{r processdata}
-# adjust property and crop damage values according to magnitude suffix
-  tdf.sd$PROPDMG <- ifelse(tdf.sd$PROPDMGEXP == "K", tdf.sd$PROPDMG * 10^3, tdf.sd$PROPDMG)
-  tdf.sd$PROPDMG <- ifelse(tdf.sd$PROPDMGEXP == "M", tdf.sd$PROPDMG * 10^6, tdf.sd$PROPDMG)
-  tdf.sd$PROPDMG <- ifelse(tdf.sd$PROPDMGEXP == "B", tdf.sd$PROPDMG * 10^9, tdf.sd$PROPDMG)
+  # conversion function to scale values based on separate magnitude 
+  scaleValue <- function(val, exp) {
+    switch(exp, "K" = val * 10^3, "M" = val * 10^6, "G" = val * 10^9, val)
+  }
+  scaleVector = Vectorize(scaleValue) # vectorized version of the scale function
 
-# str(tdf.sd)
-  dim(tdf.sd)
+  # scale damage values by the multiplier stored in the separate 'exp' variable
+  tdf.sd$PROPDMG <- scaleVector(tdf.sd$PROPDMG, as.character(tdf.sd$PROPDMGEXP))
+  tdf.sd$CROPDMG <- scaleVector(tdf.sd$CROPDMG, as.character(tdf.sd$CROPDMGEXP))
+
+  # convert strings to dates
+  tdf.sd$BGN_DATE <- as.Date(tdf.sd$BGN_DATE, "%m/%d/%Y") # convert event start dates
+  tdf.sd$END_DATE <- as.Date(tdf.sd$END_DATE, "%m/%d/%Y") # convert event end dates
+
+  first.date <- min(tdf.sd$BGN_DATE) # find the date of the earliest event
+  last.date <- max(tdf.sd$BGN_DATE) # find the date of the latest event
+  dim(tdf.sd) # query the total number of observations
 ```
 The storm data set contains `r dim(tdf.sd)[1]` event observations and measurements
 of `r dim(tdf.sd)[2]` different variables.
+
+The storm data set covers events occurring during the period from `r first.date` to `r last.date`.
 
 
 # Analysis
@@ -67,12 +81,12 @@ we'll be looking at the 'FATALITIES' and 'INJURIES' variables
 
 ```{r health_analysis}
   tdf.health <- tdf.sd %>% group_by(EVTYPE) %>% # group by event
-      summarize(dead=sum(FATALITIES), hurt=sum(INJURIES), 
+      summarize(Killed=sum(FATALITIES), Injured=sum(INJURIES), 
                 total=sum(INJURIES)+sum(FATALITIES))
 
   # reformat the data and filter events which impacted > threshold people
   health.threshold = 1000
-  tdf.health.effects <- gather(tdf.health, variable, value, -EVTYPE, -total)
+  tdf.health.effects <- gather(tdf.health, impact, value, -EVTYPE, -total)
   tdf.health.worst <- tdf.health.effects %>%
     filter(total > health.threshold) %>% arrange(-total)
 
@@ -86,10 +100,10 @@ bar chart. Event types are shown which had a cumulative effect on > `r health.th
   # order the event type factor by magnitude of total effect
   evfactors <- reorder(tdf.health.worst$EVTYPE, tdf.health.worst$total)
 
-  ggplot(tdf.health.worst, aes(x=evfactors, y=value, fill=variable)) +
+  ggplot(tdf.health.worst, aes(x=evfactors, y=value, fill=impact)) +
     geom_bar(stat="identity") + coord_flip() +
     ggtitle("Most Harmful Event Types to Population Health") +
-    ylab("Total Number Impacted") + xlab("Event Type")
+    ylab("Total Number Impacted (from 1950 through 2011)") + xlab("Event Type")
 ```
 
 ## Economic Impact
@@ -99,12 +113,12 @@ we'll be looking at the crop and property damage variables.
 
 ```{r economic_analysis}
   tdf.econ <- tdf.sd %>% group_by(EVTYPE) %>% # group by event
-      summarize(crop=sum(CROPDMG), prop=sum(PROPDMG), 
+      summarize(Crop=sum(CROPDMG), Property=sum(PROPDMG), 
                 total=sum(CROPDMG)+sum(PROPDMG))
 
   # reformat data and filter events with total economic impact > econ.threshold
   econ.threshold = 3000000000
-  tdf.econ.effects <- gather(tdf.econ, variable, value, -EVTYPE, -total)
+  tdf.econ.effects <- gather(tdf.econ, impact, value, -EVTYPE, -total)
   tdf.econ.worst <- tdf.econ.effects %>%
     filter(total > econ.threshold) %>% arrange(-total)
 
@@ -117,18 +131,39 @@ bar chart. Event types are shown which had a cumulative economic impact > $`r ec
   # order the event type factor by magnitude of total effect
   evfactors <- reorder(tdf.econ.worst$EVTYPE, tdf.econ.worst$total)
 
-  ggplot(tdf.econ.worst, aes(x=evfactors, y=value, fill=variable)) +
+  ggplot(tdf.econ.worst, aes(x=evfactors, y=value, fill=impact)) +
     geom_bar(stat="identity") + coord_flip() + 
     ggtitle("Most Economically Harmful Event Types") +
-    ylab("Total $ Impact (Crops and Property)") + xlab("Event Type") + 
-    theme(legend.position="none") # suppress legend
+    ylab("Total $ Impact (from 1950 through 2011)") + xlab("Event Type")
 ```
 
 
 # Results
 
 - Across the United States, the following types of events are most
-harmful to population health: Tornadoes, Heat, Wind, Flooding and Lightning
+harmful to population health: Tornado, Excessive Heat, Wind, Flood and Lightning
 
 - Across the United States, the following types of events have
-the greatest economic consequences: Floods, Hurricanes/Typhoons, Tornadoes, Storm Surges, and Flash Floods
+the greatest economic consequences: Tornado, Flood, Hail, Flash Flood, and Drought
+
+- These results assume that the EVTYPE variable contains distinct and unique event descriptors. In the provided data, this is not the case for all events. Events sometimes use inconsistent labels (e.g. "COLD", "COLD WAVE", "RECORD COLD") to describe the same or similar events. Also, many of the observations confound multiple event types (e.g. "SNOW AND COLD"", "FOG AND COLD"). A more precise analysis of the events would systematically address these inconsistencies.
+
+
+```{r deathratio, echo=FALSE}
+# some extra stats, of interest
+  deathratio.threshold = 0.2
+  individualMin = 100
+  tdf.deathratio <- tdf.health %>% 
+    mutate(DeathRatio=ifelse(total != 0, Killed/total, NA))
+
+  tdf.deathratio.worst <- tdf.deathratio %>%
+    filter(DeathRatio > deathratio.threshold) %>% filter(total > individualMin) %>% 
+    arrange(-DeathRatio)
+
+  evfactors <- reorder(tdf.deathratio.worst$EVTYPE, tdf.deathratio.worst$DeathRatio)
+
+  #ggplot(tdf.deathratio.worst, aes(x=evfactors, y=DeathRatio)) +
+  #  geom_bar(stat="identity") + coord_flip() +
+  #  ggtitle("Deadliest") +
+  #  ylab("Ratio of Killed to Injured (from 1950 through 2011)") + xlab("Event Type")
+```
