@@ -1,7 +1,13 @@
+# include so markdwon renders
+#stormdata.md
+#figure/
+
+# ignore source data
 StormData.csv.bz2
 cache/
-figure/
+
+# ignore generated files
 stormdata_cache/
 stormdata_files/
 stormdata.html
-#stormdata.md
+

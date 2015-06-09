@@ -1,10 +1,5 @@
----
-title: "Reproducible Research: Project 2"
-author: patrick charles  
-output:
-    html_document:
-        keep_md: true
----
+# Reproducible Research: Project 2
+patrick charles  
 
 # Storm Data Analysis
 - Course: Reproducible Research (repdata-013)
@@ -132,7 +127,7 @@ on > 1000 individuals.
     ylab("Total Number Impacted (from 1950 through 2011)") + xlab("Event Type")
 ```
 
-![plot of chunk health_visual](figure/health_visual-1.png) 
+![](stormdata_files/figure-html/health_visual-1.png) 
 
 ## Economic Impact
 
@@ -168,7 +163,7 @@ we'll be looking at the crop and property damage variables.
 
 The most economically harmful events can be visualized using a stacked
 bar chart. Event types are shown which had a cumulative economic
-impact > $3 &times; 10<sup>9</sup>.
+impact > $3\times 10^{9}.
 
 ```r
   # order the event type factor by magnitude of total effect
@@ -180,7 +175,7 @@ impact > $3 &times; 10<sup>9</sup>.
     ylab("Total $ Impact (from 1950 through 2011)") + xlab("Event Type")
 ```
 
-![plot of chunk economic_visual](figure/economic_visual-1.png) 
+![](stormdata_files/figure-html/economic_visual-1.png) 
 
 
 # Results
@@ -243,7 +238,7 @@ the years of observation.
   grid.arrange(econ.plot, health.plot, ncol=1)
 ```
 
-![plot of chunk time_plots](figure/time_plots-1.png) 
+![](stormdata_files/figure-html/time_plots-1.png) 
 
 Note that the plots are not inflation or US population adjusted.
 
