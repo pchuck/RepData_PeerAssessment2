@@ -29,7 +29,8 @@ impact of the most damaging types of events.
 
 ## Prerequisite libraries
 ggplot2 used for all plots, and tidyr/dplyr pipeline is used for processing.
-```{r message=FALSE}
+
+```r
     library(ggplot2)
     library(dplyr)
     library(tidyr)
@@ -43,7 +44,8 @@ Historical storm data is obtained from [NOAA/StormData.csv.bz2](https://d396qusz
 The data is uncompressed, read into a dataframe, damage values scaled and
 the results stored as a table data frame for further processing and analysis.
 
-```{r readcsv, cache=TRUE}
+
+```r
   # data can be fetched from the source via:
   #   wget https://d396qusza40orc.cloudfront.net/repdata/data/StormData.csv.bz2
   stormfile <- bzfile("StormData.csv.bz2","r")
@@ -51,7 +53,8 @@ the results stored as a table data frame for further processing and analysis.
   tdf.sd <- tbl_df(df.sd) # convert to a table dataframe for dplyr use
 ```
 
-```{r processdata}
+
+```r
   # conversion function to scale values based on separate magnitude 
   scaleValue <- function(val, exp) {
     switch(exp, "K" = val * 10^3, "M" = val * 10^6, "G" = val * 10^9, val)
@@ -70,11 +73,15 @@ the results stored as a table data frame for further processing and analysis.
   last.date <- max(tdf.sd$BGN_DATE) # find the date of the latest event
   dim(tdf.sd) # query the total number of observations
 ```
-The storm data set contains `r dim(tdf.sd)[1]` event observations and
-measurements of `r dim(tdf.sd)[2]` different variables.
+
+```
+## [1] 902297     37
+```
+The storm data set contains 902297 event observations and
+measurements of 37 different variables.
 
 The storm data set covers events occurring during the period from
-`r first.date` to `r last.date`.
+1950-01-03 to 2011-11-30.
 
 
 # Analysis
@@ -84,7 +91,8 @@ The storm data set covers events occurring during the period from
 To determine which events are most harmful with respect to health,
 we'll be looking at the 'FATALITIES' and 'INJURIES' variables
 
-```{r health_analysis}
+
+```r
   tdf.health <- tdf.sd %>% group_by(EVTYPE) %>% # group by event
       summarize(Killed=sum(FATALITIES), Injured=sum(INJURIES), 
                 total=sum(INJURIES)+sum(FATALITIES))
@@ -98,11 +106,23 @@ we'll be looking at the 'FATALITIES' and 'INJURIES' variables
   head(tdf.health.worst)
 ```
 
+```
+## Source: local data frame [6 x 4]
+## 
+##           EVTYPE total  impact value
+## 1        TORNADO 96979  Killed  5633
+## 2        TORNADO 96979 Injured 91346
+## 3 EXCESSIVE HEAT  8428  Killed  1903
+## 4 EXCESSIVE HEAT  8428 Injured  6525
+## 5      TSTM WIND  7461  Killed   504
+## 6      TSTM WIND  7461 Injured  6957
+```
+
 The events most harmful to health can be visualized using a stacked
 bar chart. Event types are shown which had a cumulative effect
-on > `r health.threshold` individuals.
-```{r health_visual}
+on > 1000 individuals.
 
+```r
   # order the event type factor by magnitude of total effect
   evfactors <- reorder(tdf.health.worst$EVTYPE, tdf.health.worst$total)
 
@@ -112,12 +132,15 @@ on > `r health.threshold` individuals.
     ylab("Total Number Impacted (from 1950 through 2011)") + xlab("Event Type")
 ```
 
+![plot of chunk health_visual](figure/health_visual-1.png) 
+
 ## Economic Impact
 
 To determine which events are most harmful with respect to economic cost,
 we'll be looking at the crop and property damage variables.
 
-```{r economic_analysis}
+
+```r
   tdf.econ <- tdf.sd %>% group_by(EVTYPE) %>% # group by event
       summarize(Crop=sum(CROPDMG), Property=sum(PROPDMG), 
                 total=sum(CROPDMG)+sum(PROPDMG))
@@ -131,10 +154,23 @@ we'll be looking at the crop and property damage variables.
   head(tdf.econ.worst)
 ```
 
+```
+## Source: local data frame [6 x 4]
+## 
+##    EVTYPE       total   impact       value
+## 1 TORNADO 52040614066     Crop   414953270
+## 2 TORNADO 52040614066 Property 51625660796
+## 3   FLOOD 27819678380     Crop  5661968450
+## 4   FLOOD 27819678380 Property 22157709930
+## 5    HAIL 16952904944     Crop  3025537890
+## 6    HAIL 16952904944 Property 13927367054
+```
+
 The most economically harmful events can be visualized using a stacked
 bar chart. Event types are shown which had a cumulative economic
-impact > $`r econ.threshold`.
-```{r economic_visual}
+impact > $3 &times; 10<sup>9</sup>.
+
+```r
   # order the event type factor by magnitude of total effect
   evfactors <- reorder(tdf.econ.worst$EVTYPE, tdf.econ.worst$total)
 
@@ -143,6 +179,8 @@ impact > $`r econ.threshold`.
     ggtitle("Most Economically Harmful Event Types") +
     ylab("Total $ Impact (from 1950 through 2011)") + xlab("Event Type")
 ```
+
+![plot of chunk economic_visual](figure/economic_visual-1.png) 
 
 
 # Results
@@ -164,7 +202,8 @@ It is also potentially interesting to look at this data over time
 to see how the total economic and health impacts have varied over
 the years of observation. 
 
-```{r cost_vtime}
+
+```r
   tdf.econ.yearly <- tdf.sd %>%
     mutate(year=year(BGN_DATE)) %>%
       group_by(year) %>%
@@ -174,7 +213,8 @@ the years of observation.
   tdf.econ.yearly.gather <- gather(tdf.econ.yearly, impact, value, -year, -total)
 ```
 
-```{r health_vtime}
+
+```r
   tdf.health.yearly <- tdf.sd %>%
     mutate(year=year(BGN_DATE)) %>%
       group_by(year) %>%
@@ -185,7 +225,8 @@ the years of observation.
 ```
 
 ## Figure 3
-```{r time_plots, message=FALSE}
+
+```r
   econ.plot <-
     ggplot(tdf.econ.yearly.gather, aes(x=year, y=total, fill=impact)) +
     geom_bar(stat="identity") +
@@ -201,6 +242,8 @@ the years of observation.
 
   grid.arrange(econ.plot, health.plot, ncol=1)
 ```
+
+![plot of chunk time_plots](figure/time_plots-1.png) 
 
 Note that the plots are not inflation or US population adjusted.
 
